@@ -10,7 +10,7 @@
         function loadPinyinProFallback2() {
             console.log('Trying third CDN option...');
             const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/pinyin-pro@latest/dist/index.js';
+            script.src = 'https://cdn.jsdelivr.net/npm/pinyin-pro@3.27.0/dist/index.js';
             script.onload = function() {
                 console.log('Third CDN loaded successfully');
                 setTimeout(initializeApp, 50);
@@ -25,7 +25,7 @@
         function loadPinyinProFallback() {
             console.log('Primary CDN failed, trying fallback...');
             const script = document.createElement('script');
-            script.src = 'https://unpkg.com/pinyin-pro@latest/dist/index.js';
+            script.src = 'https://unpkg.com/pinyin-pro@3.27.0/dist/index.js';
             script.onload = function() {
                 console.log('Fallback CDN loaded successfully');
                 setTimeout(initializeApp, 50);
@@ -41,7 +41,7 @@
         function loadPinyinPro() {
             const script = document.createElement('script');
             // Try with specific version first
-            script.src = 'https://unpkg.com/pinyin-pro@3/dist/index.js';
+            script.src = 'https://unpkg.com/pinyin-pro@3.27.0/dist/index.js';
             script.onload = function() {
                 console.log('pinyin-pro loaded successfully from unpkg');
                 setTimeout(initializeApp, 50);
