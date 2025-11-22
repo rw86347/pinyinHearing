@@ -296,13 +296,13 @@
             position: fixed;
             top: clamp(18px, 5vw, 36px);
             right: clamp(18px, 5vw, 36px);
-            width: 48px;
-            height: 48px;
+            width: 56px;
+            height: 56px;
             border-radius: 8px;
             background: white;
             color: var(--muted);
             border: none;
-            font-size: 1.6em;
+            font-size: 2em;
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -1211,23 +1211,20 @@
                     message = 'Pronunciation needs improvement';
                 }
                 
-                document.getElementById('status').textContent = 'Providing feedback...';
-                document.getElementById('status').className = 'status speaking';
+                document.getElementById('status').textContent = '✗ Try again';
+                document.getElementById('status').className = 'status wrong';
                 document.getElementById('result-message').textContent = message;
                 document.getElementById('result-message').style.color = 'var(--danger)';
-                document.getElementById('listen-btn').disabled = true;
+                document.getElementById('listen-btn').disabled = false;
                 
-                // Speak the feedback and then speak the word again
-                if (feedbackText) {
-                    speakFeedback(feedbackText);
-                } else {
-                    // Fallback if no feedback generated
-                    const word = state.words[state.index];
-                    if (word && word.hanzi) {
-                        setTimeout(() => {
-                            speakWord(word.hanzi);
-                        }, 500);
-                    }
+                // Don't speak feedback - just show it and let user try again
+                // Optionally, speak the word again so they can hear it
+                const word = state.words[state.index];
+                if (word && word.hanzi) {
+                    // Auto-play the word again after a short delay
+                    setTimeout(() => {
+                        speakWord(word.hanzi);
+                    }, 1000);
                 }
             }
         }
