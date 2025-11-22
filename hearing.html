@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chinese Hearing Practice - Pinyin Recognition</title>
+    <script src="https://unpkg.com/pinyin-pro@3.14.0/dist/index.umd.min.js" onerror="loadPinyinProFallback()"></script>
+    <script>
+        function loadPinyinProFallback() {
+            console.log('Primary CDN failed, trying fallback...');
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/pinyin-pro@3.14.0/dist/index.umd.min.js';
+            document.head.appendChild(script);
+        }
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+        
+        .status {
+            font-size: 1.2em;
+            color: #666;
+            margin: 20px 0;
+            min-height: 30px;
+        }
+        
+        .status.listening {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+        
+        .status.error {
+            color: #f44336;
+        }
+        
+        .controls {
+            margin: 30px 0;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.1em;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin: 10px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .result-container {
+            margin-top: 40px;
+            padding: 30px;
+            background: #f5f5f5;
+            border-radius: 15px;
+            min-height: 200px;
+        }
+        
+        .result-label {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .result-text {
+            font-size: 2em;
+            color: #333;
+            margin: 10px 0;
+            word-break: break-word;
+        }
+        
+        .result-pinyin {
+            font-size: 2.5em;
+            color: #667eea;
+            font-weight: bold;
+            margin: 20px 0;
+            word-break: break-word;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .result-hanzi {
+            font-size: 3em;
+            color: #333;
+            margin: 20px 0;
+            word-break: break-word;
+        }
+        
+        .info {
+            margin-top: 30px;
+            padding: 20px;
+            background: #e3f2fd;
+            border-radius: 10px;
+            color: #1976d2;
+            font-size: 0.9em;
+            line-height: 1.6;
+        }
+        
+        .error-message {
+            color: #f44336;
+            margin-top: 20px;
+            padding: 15px;
+            background: #ffebee;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Chinese Hearing Practice</h1>
+        <p class="subtitle">Speak Chinese and see the pinyin with tone numbers</p>
+        
+        <div class="status" id="status">Click "Start Listening" to begin</div>
+        
+        <div class="controls">
+            <button id="startBtn">Start Listening</button>
+            <button id="stopBtn" disabled>Stop Listening</button>
+        </div>
+        
+        <div class="result-container">
+            <div class="result-label">Recognized Text (Hanzi)</div>
+            <div class="result-hanzi" id="hanziResult">—</div>
+            
+            <div class="result-label">Pinyin with Tone Numbers</div>
+            <div class="result-pinyin" id="pinyinResult">—</div>
+        </div>
+        
+        <div class="info">
+            <strong>How to use:</strong><br>
+            1. Click "Start Listening" to begin<br>
+            2. Speak Chinese words or sentences<br>
+            3. The recognized text will appear with pinyin and tone numbers (e.g., hao4)<br>
+            4. Click "Stop Listening" when done
+        </div>
+        
+        <div id="errorMessage" class="error-message" style="display: none;"></div>
+    </div>
+
+    <script>
+        // Wait for pinyin-pro to load and debug
+        function debugPinyinPro() {
+            console.log('=== pinyinPro Debug ===');
+            console.log('typeof pinyinPro:', typeof pinyinPro);
+            console.log('pinyinPro:', pinyinPro);
+            if (typeof pinyinPro !== 'undefined') {
+                console.log('pinyinPro keys:', Object.keys(pinyinPro));
+                if (pinyinPro.pinyin) {
+                    console.log('pinyinPro.pinyin type:', typeof pinyinPro.pinyin);
+                }
+                if (pinyinPro.default) {
+                    console.log('pinyinPro.default:', pinyinPro.default);
+                }
+            }
+            console.log('window.pinyinPro:', window.pinyinPro);
+            console.log('=====================');
+        }
+        
+        // Check after page loads
+        window.addEventListener('load', function() {
+            setTimeout(debugPinyinPro, 1000); // Wait a bit for library to load
+        });
+        
+        // Check if pinyin-pro is available
+        function checkPinyinPro() {
+            if (typeof pinyinPro === 'undefined') {
+                document.getElementById('errorMessage').style.display = 'block';
+                document.getElementById('errorMessage').textContent = 
+                    'Error: pinyin-pro library failed to load. Please check your internet connection.';
+                return false;
+            }
+            return true;
+        }
+        
+        // Check for Speech Recognition support
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        
+        if (!SpeechRecognition) {
+            document.getElementById('errorMessage').style.display = 'block';
+            document.getElementById('errorMessage').textContent = 
+                'Speech Recognition is not supported in this browser. Please use Chrome, Edge, or Safari.';
+            document.getElementById('startBtn').disabled = true;
+        }
+        
+        let recognition = null;
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const statusEl = document.getElementById('status');
+        const hanziResult = document.getElementById('hanziResult');
+        const pinyinResult = document.getElementById('pinyinResult');
+        const errorMessage = document.getElementById('errorMessage');
+        
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.lang = 'zh-CN'; // Chinese (Simplified)
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            
+            recognition.onstart = function() {
+                statusEl.textContent = 'Listening... Speak now!';
+                statusEl.className = 'status listening';
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                errorMessage.style.display = 'none';
+            };
+            
+            recognition.onresult = function(event) {
+                let finalTranscript = '';
+                let interimTranscript = '';
+                
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript;
+                    } else {
+                        interimTranscript += transcript;
+                    }
+                }
+                
+                // Display the recognized text
+                const displayText = finalTranscript || interimTranscript;
+                if (displayText) {
+                    hanziResult.textContent = displayText;
+                    
+                    // Convert to pinyin with tone numbers using pinyin-pro
+                    try {
+                        if (!checkPinyinPro()) {
+                            pinyinResult.textContent = 'Library not loaded';
+                            return;
+                        }
+                        
+                        let pinyin = '';
+                        
+                        // Try different ways to access pinyin-pro API
+                        if (pinyinPro && pinyinPro.pinyin && typeof pinyinPro.pinyin === 'function') {
+                            // Standard API: pinyinPro.pinyin(text, options)
+                            pinyin = pinyinPro.pinyin(displayText, {
+                                toneType: 'num' // Use tone numbers (1,2,3,4,5) instead of tone marks
+                            });
+                        } else if (pinyinPro && typeof pinyinPro === 'function') {
+                            // Direct function call
+                            pinyin = pinyinPro(displayText, { toneType: 'num' });
+                        } else if (pinyinPro && pinyinPro.default && typeof pinyinPro.default.pinyin === 'function') {
+                            // ES6 module default export
+                            pinyin = pinyinPro.default.pinyin(displayText, { toneType: 'num' });
+                        } else if (pinyinPro && pinyinPro.default && typeof pinyinPro.default === 'function') {
+                            // ES6 module default function
+                            pinyin = pinyinPro.default(displayText, { toneType: 'num' });
+                        } else {
+                            console.error('pinyinPro structure:', pinyinPro);
+                            pinyinResult.textContent = 'API not found. Check console for details.';
+                            return;
+                        }
+                        
+                        pinyinResult.textContent = pinyin || '—';
+                    } catch (error) {
+                        console.error('Error converting to pinyin:', error);
+                        pinyinResult.textContent = 'Error: ' + error.message;
+                    }
+                }
+            };
+            
+            recognition.onerror = function(event) {
+                console.error('Speech recognition error:', event.error);
+                statusEl.textContent = 'Error: ' + event.error;
+                statusEl.className = 'status error';
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+                
+                if (event.error === 'no-speech') {
+                    statusEl.textContent = 'No speech detected. Try again.';
+                } else if (event.error === 'not-allowed') {
+                    statusEl.textContent = 'Microphone permission denied. Please allow microphone access.';
+                }
+            };
+            
+            recognition.onend = function() {
+                statusEl.textContent = 'Stopped listening';
+                statusEl.className = 'status';
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+            };
+        }
+        
+        startBtn.addEventListener('click', function() {
+            if (recognition) {
+                try {
+                    recognition.start();
+                } catch (error) {
+                    console.error('Error starting recognition:', error);
+                    statusEl.textContent = 'Error starting recognition. Please try again.';
+                    statusEl.className = 'status error';
+                }
+            }
+        });
+        
+        stopBtn.addEventListener('click', function() {
+            if (recognition) {
+                recognition.stop();
+            }
+        });
+    </script>
+</body>
+</html>
+
