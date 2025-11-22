@@ -362,6 +362,12 @@
             'vocab.json',
             'http://69.48.200.59/chineseStudy/vocab.json'
         ];
+        
+        // Localized vocab sources
+        const LOCALIZED_VOCAB_BASE = 'http://69.48.200.59/chineseStudy/vocabLocalized/';
+        
+        const VOCAB_CACHE_KEY = 'pronunciation_vocab_cache';
+        const VOCAB_CACHE_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
 
         const state = {
             data: null,
@@ -632,26 +638,58 @@
             }
         }
 
-        // Load vocabulary data
+        // Load vocabulary data (same pattern as preview.html)
         async function loadVocabularyData() {
+            // Try cache first
+            try {
+                const cached = localStorage.getItem(VOCAB_CACHE_KEY);
+                const timestamp = localStorage.getItem(`${VOCAB_CACHE_KEY}_timestamp`);
+                const source = localStorage.getItem(`${VOCAB_CACHE_KEY}_source`);
+                
+                if (cached && timestamp && source) {
+                    const cacheAge = Date.now() - parseInt(timestamp, 10);
+                    if (cacheAge < VOCAB_CACHE_DURATION_MS) {
+                        const payload = JSON.parse(cached);
+                        state.data = payload.bookarray || {};
+                        console.log('[pronunciation] Using cached vocabulary data from', source, '(age:', Math.round(cacheAge / 1000 / 60), 'minutes)');
+                        populateBooks();
+                        return;
+                    }
+                }
+            } catch (error) {
+                console.warn('[pronunciation] Error reading cache:', error);
+            }
+            
+            // Cache miss or expired, fetch from sources
             for (const url of DATA_SOURCES) {
                 try {
                     const response = await fetch(`${url}?_=${Date.now()}`);
                     if (!response.ok) {
-                        console.warn('Vocabulary request failed', url, response.status);
+                        console.warn('[pronunciation] Vocabulary request failed', url, response.status);
                         continue;
                     }
                     const payload = await response.json();
                     state.data = payload.bookarray || {};
-                    console.log('Loaded vocabulary from', url);
+                    
+                    // Cache the successful fetch
+                    try {
+                        localStorage.setItem(VOCAB_CACHE_KEY, JSON.stringify(payload));
+                        localStorage.setItem(`${VOCAB_CACHE_KEY}_timestamp`, Date.now().toString());
+                        localStorage.setItem(`${VOCAB_CACHE_KEY}_source`, url);
+                    } catch (cacheError) {
+                        console.warn('[pronunciation] Failed to cache vocabulary:', cacheError);
+                    }
+                    
+                    console.log('[pronunciation] Loaded vocabulary from', url);
                     populateBooks();
                     return;
                 } catch (error) {
-                    console.warn('Vocabulary request error', url, error);
+                    console.warn('[pronunciation] Vocabulary request error', url, error);
                 }
             }
+            
             // Fallback to sample data if all sources fail
-            console.warn('All vocabulary sources failed, using sample data');
+            console.warn('[pronunciation] All vocabulary sources failed, using sample data');
             state.data = {
                 "HSK1": {
                     "Chapter 1": [
