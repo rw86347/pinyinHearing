@@ -1007,28 +1007,92 @@
         }
 
         // Generate detailed feedback sentence (using exact format from user)
-        function generateFeedbackSentence(toneErrors) {
-            if (!toneErrors || toneErrors.length === 0) {
-                return "Pronunciation needs improvement. Listen again.";
+        function generateFeedbackSentence(expectedPinyin, heardPinyin, hanzi) {
+            if (!expectedPinyin || !heardPinyin) {
+                return "Pronunciation needs improvement. listen again " + (hanzi || '');
             }
 
+            // Split into syllables
+            const expectedSyllables = normalizePinyin(expectedPinyin).split(/\s+/);
+            const heardSyllables = normalizePinyin(heardPinyin).split(/\s+/);
+            
+            if (expectedSyllables.length !== heardSyllables.length) {
+                return "Syllable count mismatch. listen again " + (hanzi || '');
+            }
+
+            const wrongTones = [];
+            const correctTones = [];
+            
+            // Check each syllable
+            for (let i = 0; i < expectedSyllables.length; i++) {
+                const exp = expectedSyllables[i];
+                const hrd = heardSyllables[i];
+                
+                // Extract tone numbers
+                const expMatch = exp.match(/^(.+?)([1-5])?$/);
+                const hrdMatch = hrd.match(/^(.+?)([1-5])?$/);
+                
+                if (expMatch && hrdMatch) {
+                    const expBase = expMatch[1];
+                    const hrdBase = hrdMatch[1];
+                    const expTone = expMatch[2] || '5';
+                    const hrdTone = hrdMatch[2] || '5';
+                    
+                    // Check if base matches (same syllable)
+                    if (expBase === hrdBase) {
+                        if (expTone !== hrdTone) {
+                            // Wrong tone
+                            wrongTones.push({
+                                wordNum: i + 1,
+                                heardTone: hrdTone,
+                                expectedTone: expTone
+                            });
+                        } else {
+                            // Correct tone
+                            correctTones.push({
+                                wordNum: i + 1,
+                                tone: expTone
+                            });
+                        }
+                    }
+                }
+            }
+
+            if (wrongTones.length === 0) {
+                return "Pronunciation needs improvement. listen again " + (hanzi || '');
+            }
+
+            // Build sentence parts
             const parts = [];
-            toneErrors.forEach((error, idx) => {
+            
+            // Add wrong tone parts
+            wrongTones.forEach((error, idx) => {
                 const wordOrdinal = getOrdinal(error.wordNum);
                 const heardToneName = getToneName(error.heardTone);
                 const expectedToneName = getToneName(error.expectedTone);
                 
                 if (idx === 0) {
-                    parts.push(`you used the ${heardToneName} tone on the ${wordOrdinal} word when it should have been the ${expectedToneName} tone`);
-                } else if (idx === toneErrors.length - 1 && toneErrors.length > 1) {
-                    parts.push(`and the ${heardToneName} tone on the ${wordOrdinal} word when it should have been the ${expectedToneName} tone`);
+                    parts.push(`you use ${heardToneName} tone with the ${wordOrdinal} word when you should have used the ${expectedToneName} tone`);
                 } else {
-                    parts.push(`the ${heardToneName} tone on the ${wordOrdinal} word when it should have been the ${expectedToneName} tone`);
+                    parts.push(`and you use ${heardToneName} tone with the ${wordOrdinal} word when you should have used the ${expectedToneName} tone`);
                 }
             });
+            
+            // Add correct tone parts
+            if (correctTones.length > 0) {
+                correctTones.forEach((correct, idx) => {
+                    const wordOrdinal = getOrdinal(correct.wordNum);
+                    const toneName = getToneName(correct.tone);
+                    if (idx === 0) {
+                        parts.push(`while the ${wordOrdinal} tone was correct`);
+                    } else {
+                        parts.push(`and the ${wordOrdinal} tone was correct`);
+                    }
+                });
+            }
 
             let sentence = parts.join(', ');
-            sentence += ", listen again";
+            sentence += ". listen again " + (hanzi || '');
 
             return sentence;
         }
@@ -1040,19 +1104,36 @@
             synthesis.cancel(); // Stop any ongoing speech
 
             const utterance = new SpeechSynthesisUtterance(feedbackText);
-            utterance.lang = 'zh-CN'; // Use same Chinese language as word pronunciation
-            
-            // Apply same voice settings as word pronunciation
+            // Use same voice settings as Chinese word - force same voice
             utterance.rate = voiceSettings.rate || 0.5;
             utterance.pitch = voiceSettings.pitch || 1.0;
             utterance.volume = voiceSettings.volume || 1.0;
             
-            // Use the same voice if specified
+            // Force use the same Chinese voice for English feedback
+            const voices = synthesis.getVoices();
             if (voiceSettings.voiceName) {
-                const voices = synthesis.getVoices();
                 const selectedVoice = voices.find(v => v.name === voiceSettings.voiceName);
                 if (selectedVoice) {
                     utterance.voice = selectedVoice;
+                    utterance.lang = selectedVoice.lang || 'zh-CN';
+                } else {
+                    // Fallback to any Chinese voice
+                    const chineseVoice = voices.find(v => v.lang.startsWith('zh')) || null;
+                    if (chineseVoice) {
+                        utterance.voice = chineseVoice;
+                        utterance.lang = chineseVoice.lang || 'zh-CN';
+                    } else {
+                        utterance.lang = 'zh-CN';
+                    }
+                }
+            } else {
+                // No voice selected, find Chinese voice
+                const chineseVoice = voices.find(v => v.lang.startsWith('zh')) || null;
+                if (chineseVoice) {
+                    utterance.voice = chineseVoice;
+                    utterance.lang = chineseVoice.lang || 'zh-CN';
+                } else {
+                    utterance.lang = 'zh-CN';
                 }
             }
 
