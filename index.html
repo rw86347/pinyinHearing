@@ -10,10 +10,11 @@
         function loadPinyinProFallback() {
             console.log('Primary CDN failed, trying fallback...');
             const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/pinyin-pro@3/dist/index.umd.min.js';
+            script.src = 'https://cdn.jsdelivr.net/npm/pinyin-pro@3/dist/index.js';
             script.onload = function() {
                 console.log('Fallback CDN loaded successfully');
-                initializeApp();
+                // Wait a moment for the library to attach to window
+                setTimeout(initializeApp, 50);
             };
             script.onerror = function() {
                 console.error('Both CDNs failed to load pinyin-pro');
@@ -25,10 +26,11 @@
         // Load pinyin-pro with proper error handling
         function loadPinyinPro() {
             const script = document.createElement('script');
-            script.src = 'https://unpkg.com/pinyin-pro@3/dist/index.umd.min.js';
+            script.src = 'https://unpkg.com/pinyin-pro@3/dist/index.js';
             script.onload = function() {
                 console.log('pinyin-pro loaded successfully');
-                initializeApp();
+                // Wait a moment for the library to attach to window
+                setTimeout(initializeApp, 50);
             };
             script.onerror = function() {
                 console.error('Primary CDN failed, trying fallback...');
@@ -257,16 +259,17 @@
             // Wait a bit for the library to fully initialize
             setTimeout(function() {
                 // Try multiple ways to access pinyin-pro (UMD builds can export differently)
-                if (typeof window.pinyinPro !== 'undefined') {
+                // First try global pinyinPro (not window.pinyinPro)
+                if (typeof pinyinPro !== 'undefined' && pinyinPro !== null) {
+                    console.log('pinyin-pro found as global pinyinPro');
+                    // Keep it as is
+                } else if (typeof window.pinyinPro !== 'undefined') {
                     pinyinPro = window.pinyinPro;
                     console.log('pinyin-pro found on window.pinyinPro');
                 } else if (typeof window.pinyin !== 'undefined') {
                     // Some builds might export as 'pinyin'
                     pinyinPro = window.pinyin;
                     console.log('pinyin-pro found on window.pinyin');
-                } else if (typeof pinyinPro !== 'undefined') {
-                    pinyinPro = window.pinyinPro || pinyinPro;
-                    console.log('pinyin-pro found as global pinyinPro');
                 } else {
                     // Last attempt: check all window properties
                     for (let key in window) {
@@ -275,6 +278,15 @@
                             console.log('pinyin-pro found on window.' + key);
                             break;
                         }
+                    }
+                    // Also try global scope
+                    try {
+                        if (typeof eval('pinyinPro') !== 'undefined') {
+                            pinyinPro = eval('pinyinPro');
+                            console.log('pinyin-pro found in global scope');
+                        }
+                    } catch(e) {
+                        // Ignore
                     }
                 }
                 
@@ -320,18 +332,27 @@
             }
             
             try {
+                // According to pinyin-pro docs, when loaded via script tag:
+                // var { pinyin } = pinyinPro;
+                // pinyin(text, { toneType: 'num' })
+                
                 // Try different API access patterns for pinyin-pro
-                // Pattern 1: window.pinyinPro.pinyin() - most common for UMD builds
+                // Pattern 1: pinyinPro.pinyin() - destructured from pinyinPro
                 if (pinyinPro && pinyinPro.pinyin && typeof pinyinPro.pinyin === 'function') {
                     return pinyinPro.pinyin(text, { toneType: 'num' });
                 }
                 
-                // Pattern 2: window.pinyinPro() - direct function export
+                // Pattern 2: Check if pinyin is available directly
+                if (typeof pinyin === 'function') {
+                    return pinyin(text, { toneType: 'num' });
+                }
+                
+                // Pattern 3: window.pinyinPro() - direct function export
                 if (pinyinPro && typeof pinyinPro === 'function') {
                     return pinyinPro(text, { toneType: 'num' });
                 }
                 
-                // Pattern 3: window.pinyinPro.default.pinyin() - ES6 default export
+                // Pattern 4: window.pinyinPro.default.pinyin() - ES6 default export
                 if (pinyinPro && pinyinPro.default) {
                     if (pinyinPro.default.pinyin && typeof pinyinPro.default.pinyin === 'function') {
                         return pinyinPro.default.pinyin(text, { toneType: 'num' });
@@ -341,7 +362,17 @@
                     }
                 }
                 
-                // Pattern 4: Check if it's an object with a different structure
+                // Pattern 5: Try destructuring and accessing
+                try {
+                    const { pinyin: pinyinFn } = pinyinPro || {};
+                    if (typeof pinyinFn === 'function') {
+                        return pinyinFn(text, { toneType: 'num' });
+                    }
+                } catch(e) {
+                    // Ignore destructuring errors
+                }
+                
+                // Pattern 6: Check if it's an object with a different structure
                 if (pinyinPro && typeof pinyinPro === 'object') {
                     // Try common method names
                     const methods = ['pinyin', 'convert', 'toPinyin', 'getPinyin'];
