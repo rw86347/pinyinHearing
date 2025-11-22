@@ -436,7 +436,7 @@
         <header>
             <h2 id="page-title">
                 Pronunciation Practice
-                <span class="pinyin-status loading" id="pinyin-status" title="Pinyin library status">Loading pinyin-pro...</span>
+                <span class="pinyin-status loading" id="pinyin-status" title="Advanced listening status">Loading advanced listening...</span>
             </h2>
         </header>
 
@@ -595,11 +595,11 @@
                     }
                 } catch (error) {
                     console.error('pinyin-pro API test failed:', error);
-                    updatePinyinStatus('error', '✗ pinyin-pro error');
+                    updatePinyinStatus('error', '✗ Advanced listening error');
                     return false;
                 }
                 
-                updatePinyinStatus('error', '✗ pinyin-pro API not found');
+                updatePinyinStatus('error', '✗ Advanced listening not available');
                 return false;
             }
             setTimeout(initializePinyinPro, 100);
@@ -1160,7 +1160,7 @@
         // Event listeners
         document.addEventListener('DOMContentLoaded', function() {
             // Initialize status indicator
-            updatePinyinStatus('loading', 'Loading pinyin-pro...');
+            updatePinyinStatus('loading', 'Loading advanced listening...');
             
             // Wait for pinyin-pro to load
             const checkPinyinPro = setInterval(() => {
@@ -1173,7 +1173,7 @@
             setTimeout(() => {
                 const statusEl = document.getElementById('pinyin-status');
                 if (statusEl && statusEl.classList.contains('loading')) {
-                    updatePinyinStatus('error', '✗ pinyin-pro timeout');
+                    updatePinyinStatus('error', '✗ Advanced listening timeout');
                     clearInterval(checkPinyinPro);
                 }
             }, 5000);
