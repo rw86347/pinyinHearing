@@ -6,19 +6,33 @@
     <title>Chinese Hearing Practice - Pinyin Recognition</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🇨🇳</text></svg>">
     <script>
-        // Define fallback function first
-        function loadPinyinProFallback() {
-            console.log('Primary CDN failed, trying fallback...');
+        // Define fallback function first - try multiple CDN options
+        function loadPinyinProFallback2() {
+            console.log('Trying third CDN option...');
             const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/pinyin-pro@3/dist/index.js';
+            script.src = 'https://cdn.jsdelivr.net/npm/pinyin-pro@latest/dist/index.js';
             script.onload = function() {
-                console.log('Fallback CDN loaded successfully');
-                // Wait a moment for the library to attach to window
+                console.log('Third CDN loaded successfully');
                 setTimeout(initializeApp, 50);
             };
             script.onerror = function() {
-                console.error('Both CDNs failed to load pinyin-pro');
+                console.error('All CDN options failed to load pinyin-pro');
                 showLibraryError();
+            };
+            document.head.appendChild(script);
+        }
+        
+        function loadPinyinProFallback() {
+            console.log('Primary CDN failed, trying fallback...');
+            const script = document.createElement('script');
+            script.src = 'https://unpkg.com/pinyin-pro@latest/dist/index.js';
+            script.onload = function() {
+                console.log('Fallback CDN loaded successfully');
+                setTimeout(initializeApp, 50);
+            };
+            script.onerror = function() {
+                console.error('Fallback CDN also failed, trying third option...');
+                loadPinyinProFallback2();
             };
             document.head.appendChild(script);
         }
@@ -26,10 +40,10 @@
         // Load pinyin-pro with proper error handling
         function loadPinyinPro() {
             const script = document.createElement('script');
+            // Try with specific version first
             script.src = 'https://unpkg.com/pinyin-pro@3/dist/index.js';
             script.onload = function() {
-                console.log('pinyin-pro loaded successfully');
-                // Wait a moment for the library to attach to window
+                console.log('pinyin-pro loaded successfully from unpkg');
                 setTimeout(initializeApp, 50);
             };
             script.onerror = function() {
