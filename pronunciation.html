@@ -1078,17 +1078,22 @@
                 }
             });
             
-            // Add correct tone parts
-            if (correctTones.length > 0) {
-                correctTones.forEach((correct, idx) => {
+            // Add correct tone parts (only if there are wrong tones)
+            if (correctTones.length > 0 && wrongTones.length > 0) {
+                if (correctTones.length === 1) {
+                    const correct = correctTones[0];
                     const wordOrdinal = getOrdinal(correct.wordNum);
-                    const toneName = getToneName(correct.tone);
-                    if (idx === 0) {
-                        parts.push(`while the ${wordOrdinal} tone was correct`);
-                    } else {
-                        parts.push(`and the ${wordOrdinal} tone was correct`);
-                    }
-                });
+                    parts.push(`while the ${wordOrdinal} tone was correct`);
+                } else {
+                    correctTones.forEach((correct, idx) => {
+                        const wordOrdinal = getOrdinal(correct.wordNum);
+                        if (idx === 0) {
+                            parts.push(`while the ${wordOrdinal} tone was correct`);
+                        } else {
+                            parts.push(`and the ${wordOrdinal} tone was correct`);
+                        }
+                    });
+                }
             }
 
             let sentence = parts.join(', ');
@@ -1191,8 +1196,8 @@
                     message = `Syllable count mismatch (expected ${comparison.expectedCount}, heard ${comparison.heardCount})`;
                     feedbackText = message + " Listen again.";
                 } else if (comparison.toneErrors && comparison.toneErrors.length > 0) {
-                    // Generate detailed tone feedback
-                    feedbackText = generateFeedbackSentence(comparison.toneErrors);
+                    // Generate detailed tone feedback with hanzi
+                    feedbackText = generateFeedbackSentence(state.expectedPinyin, state.heardPinyin, word ? word.hanzi : null);
                     
                     if (comparison.toneErrors.length === 1) {
                         const error = comparison.toneErrors[0];
@@ -1201,8 +1206,9 @@
                         message = 'Multiple tone errors';
                     }
                 } else {
+                    // Other pronunciation errors
+                    feedbackText = "Pronunciation needs improvement. listen again " + (word ? word.hanzi : '');
                     message = 'Pronunciation needs improvement';
-                    feedbackText = message + " Listen again.";
                 }
                 
                 document.getElementById('status').textContent = 'Providing feedback...';
