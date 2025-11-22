@@ -400,12 +400,41 @@
             position: relative;
             margin-bottom: 20px;
         }
+
+        .pinyin-status {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75em;
+            font-weight: 600;
+            margin-left: 10px;
+            vertical-align: middle;
+            transition: all 0.3s ease;
+        }
+
+        .pinyin-status.loading {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .pinyin-status.ready {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .pinyin-status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
     </style>
 </head>
 <body>
     <div class="app-shell">
         <header>
-            <h2 id="page-title">Pronunciation Practice</h2>
+            <h2 id="page-title">
+                Pronunciation Practice
+                <span class="pinyin-status loading" id="pinyin-status" title="Pinyin library status">Loading pinyin-pro...</span>
+            </h2>
         </header>
 
         <section class="panel setup-panel" id="setup-panel">
@@ -535,12 +564,40 @@
         let synthesis = null;
         let availableVoices = [];
 
+        // Update pinyin-pro status indicator
+        function updatePinyinStatus(status, message) {
+            const statusEl = document.getElementById('pinyin-status');
+            if (!statusEl) return;
+            
+            statusEl.className = `pinyin-status ${status}`;
+            statusEl.textContent = message;
+            statusEl.title = message;
+        }
+
         // Initialize pinyin-pro
         function initializePinyinPro() {
             if (typeof window.pinyinPro !== 'undefined') {
                 pinyinPro = window.pinyinPro;
                 console.log('pinyin-pro loaded');
-                return true;
+                
+                // Verify it's working by testing the API
+                try {
+                    if (pinyinPro && pinyinPro.pinyin && typeof pinyinPro.pinyin === 'function') {
+                        // Test it with a simple word
+                        const test = pinyinPro.pinyin('你好', { toneType: 'num' });
+                        if (test) {
+                            updatePinyinStatus('ready', '✓ pinyin-pro ready');
+                            return true;
+                        }
+                    }
+                } catch (error) {
+                    console.error('pinyin-pro API test failed:', error);
+                    updatePinyinStatus('error', '✗ pinyin-pro error');
+                    return false;
+                }
+                
+                updatePinyinStatus('error', '✗ pinyin-pro API not found');
+                return false;
             }
             setTimeout(initializePinyinPro, 100);
             return false;
@@ -1087,14 +1144,24 @@
 
         // Event listeners
         document.addEventListener('DOMContentLoaded', function() {
+            // Initialize status indicator
+            updatePinyinStatus('loading', 'Loading pinyin-pro...');
+            
             // Wait for pinyin-pro to load
             const checkPinyinPro = setInterval(() => {
-                if (typeof window.pinyinPro !== 'undefined') {
-                    pinyinPro = window.pinyinPro;
+                if (initializePinyinPro()) {
                     clearInterval(checkPinyinPro);
-                    console.log('pinyin-pro ready');
                 }
             }, 100);
+            
+            // Timeout after 5 seconds if still loading
+            setTimeout(() => {
+                const statusEl = document.getElementById('pinyin-status');
+                if (statusEl && statusEl.classList.contains('loading')) {
+                    updatePinyinStatus('error', '✗ pinyin-pro timeout');
+                    clearInterval(checkPinyinPro);
+                }
+            }, 5000);
 
             initializeTTS();
             initializeSpeechRecognition();
