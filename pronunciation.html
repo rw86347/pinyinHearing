@@ -266,6 +266,10 @@
             gap: 16px;
         }
 
+        .selection-row {
+            margin-bottom: 24px;
+        }
+
         label {
             font-weight: 600;
             letter-spacing: 0.02em;
@@ -1101,6 +1105,18 @@
             });
         }
 
+        // Format chapter name (matching preview.html)
+        function formatChapterName(chapterKey) {
+            if (!chapterKey) {
+                return 'Unknown Chapter';
+            }
+            const numeric = chapterKey.match(/\d+/);
+            if (numeric) {
+                return `Chapter ${parseInt(numeric[0], 10)}`;
+            }
+            return chapterKey;
+        }
+
         // Populate chapters
         function populateChapters() {
             const chapterSelect = document.getElementById('chapter-select');
@@ -1115,7 +1131,7 @@
             chapters.forEach(chapterKey => {
                 const option = document.createElement('option');
                 option.value = chapterKey;
-                option.textContent = chapterKey;
+                option.textContent = formatChapterName(chapterKey);
                 chapterSelect.appendChild(option);
             });
         }
