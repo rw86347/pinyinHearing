@@ -1006,7 +1006,7 @@
             return { match: false, type: 'differences', differences, toneErrors };
         }
 
-        // Generate detailed feedback sentence
+        // Generate detailed feedback sentence (using exact format from user)
         function generateFeedbackSentence(toneErrors) {
             if (!toneErrors || toneErrors.length === 0) {
                 return "Pronunciation needs improvement. Listen again.";
@@ -1018,46 +1018,42 @@
                 const heardToneName = getToneName(error.heardTone);
                 const expectedToneName = getToneName(error.expectedTone);
                 
-                let part;
-                if (idx === 0 && toneErrors.length === 1) {
-                    part = `You used the ${heardToneName} tone on the ${wordOrdinal} word when it should have been the ${expectedToneName} tone`;
+                if (idx === 0) {
+                    parts.push(`you used the ${heardToneName} tone on the ${wordOrdinal} word when it should have been the ${expectedToneName} tone`);
                 } else if (idx === toneErrors.length - 1 && toneErrors.length > 1) {
-                    part = `and the ${heardToneName} tone on the ${wordOrdinal} word when it should have been the ${expectedToneName} tone`;
+                    parts.push(`and the ${heardToneName} tone on the ${wordOrdinal} word when it should have been the ${expectedToneName} tone`);
                 } else {
-                    part = `the ${heardToneName} tone on the ${wordOrdinal} word when it should have been the ${expectedToneName} tone`;
+                    parts.push(`the ${heardToneName} tone on the ${wordOrdinal} word when it should have been the ${expectedToneName} tone`);
                 }
-                
-                parts.push(part);
             });
 
-            let sentence = "You used ";
-            if (toneErrors.length === 1) {
-                sentence += parts[0];
-            } else {
-                sentence += parts.slice(0, -1).join(', ') + ', ' + parts[parts.length - 1];
-            }
-            sentence += ". Listen again.";
+            let sentence = parts.join(', ');
+            sentence += ", listen again";
 
             return sentence;
         }
 
-        // Speak feedback using English TTS
+        // Speak feedback using the same Chinese voice settings
         function speakFeedback(feedbackText) {
             if (!synthesis) return;
 
             synthesis.cancel(); // Stop any ongoing speech
 
             const utterance = new SpeechSynthesisUtterance(feedbackText);
-            utterance.lang = 'en-US'; // English for feedback
-            utterance.rate = 0.9;
-            utterance.pitch = 1.0;
-            utterance.volume = 1.0;
-
-            // Try to use an English voice
-            const voices = synthesis.getVoices();
-            const englishVoice = voices.find(v => v.lang.startsWith('en')) || null;
-            if (englishVoice) {
-                utterance.voice = englishVoice;
+            utterance.lang = 'zh-CN'; // Use same Chinese language as word pronunciation
+            
+            // Apply same voice settings as word pronunciation
+            utterance.rate = voiceSettings.rate || 0.5;
+            utterance.pitch = voiceSettings.pitch || 1.0;
+            utterance.volume = voiceSettings.volume || 1.0;
+            
+            // Use the same voice if specified
+            if (voiceSettings.voiceName) {
+                const voices = synthesis.getVoices();
+                const selectedVoice = voices.find(v => v.name === voiceSettings.voiceName);
+                if (selectedVoice) {
+                    utterance.voice = selectedVoice;
+                }
             }
 
             utterance.onend = function() {
