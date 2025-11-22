@@ -358,9 +358,11 @@
     <script src="https://unpkg.com/pinyin-pro@3.27.0/dist/index.js"></script>
     <script>
         // Vocabulary data sources (same as preview.html)
+        // Try HTTPS first (for GitHub Pages), then HTTP (for same-origin)
         const DATA_SOURCES = [
             'vocab.json',
-            'http://69.48.200.59/chineseStudy/vocab.json'
+            'https://69.48.200.59/chineseStudy/vocab.json',  // Try HTTPS first
+            'http://69.48.200.59/chineseStudy/vocab.json'    // Fallback to HTTP
         ];
         
         // Localized vocab sources
@@ -684,12 +686,26 @@
                     populateBooks();
                     return;
                 } catch (error) {
-                    console.warn('[pronunciation] Vocabulary request error', url, error);
+                    // Expected error when loading from GitHub Pages due to CORS restrictions
+                    // Only log if it's not a network/CORS error (which is expected)
+                    if (!error.message.includes('Failed to fetch') && !error.message.includes('CORS')) {
+                        console.warn('[pronunciation] Vocabulary request error', url, error);
+                    }
                 }
             }
             
             // Fallback to sample data if all sources fail
             console.warn('[pronunciation] All vocabulary sources failed, using sample data');
+            console.warn('[pronunciation] This may be due to CORS restrictions when loading from GitHub Pages.');
+            console.warn('[pronunciation] If you have cached data, it will be used. Otherwise, sample data will be shown.');
+            
+            // Show user-friendly message
+            const setupMessage = document.getElementById('setup-message');
+            if (setupMessage) {
+                setupMessage.textContent = 'Unable to load vocabulary from server. Using sample data. If you have previously visited this page, cached data may be available.';
+                setupMessage.style.color = 'var(--muted)';
+            }
+            
             state.data = {
                 "HSK1": {
                     "Chapter 1": [
