@@ -4,13 +4,52 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chinese Hearing Practice - Pinyin Recognition</title>
-    <script src="https://unpkg.com/pinyin-pro@3.14.0/dist/index.umd.min.js" onerror="loadPinyinProFallback()"></script>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🇨🇳</text></svg>">
     <script>
+        // Define fallback function first
         function loadPinyinProFallback() {
             console.log('Primary CDN failed, trying fallback...');
             const script = document.createElement('script');
             script.src = 'https://cdn.jsdelivr.net/npm/pinyin-pro@3.14.0/dist/index.umd.min.js';
+            script.onload = function() {
+                console.log('Fallback CDN loaded successfully');
+                initializeApp();
+            };
+            script.onerror = function() {
+                console.error('Both CDNs failed to load pinyin-pro');
+                showLibraryError();
+            };
             document.head.appendChild(script);
+        }
+        
+        // Load pinyin-pro with proper error handling
+        function loadPinyinPro() {
+            const script = document.createElement('script');
+            script.src = 'https://unpkg.com/pinyin-pro@3.14.0/dist/index.umd.min.js';
+            script.onload = function() {
+                console.log('pinyin-pro loaded successfully');
+                initializeApp();
+            };
+            script.onerror = function() {
+                console.error('Primary CDN failed, trying fallback...');
+                loadPinyinProFallback();
+            };
+            document.head.appendChild(script);
+        }
+        
+        function showLibraryError() {
+            if (document.getElementById('errorMessage')) {
+                document.getElementById('errorMessage').style.display = 'block';
+                document.getElementById('errorMessage').textContent = 
+                    'Error: Failed to load pinyin-pro library. Please check your internet connection.';
+            }
+        }
+        
+        // Start loading when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', loadPinyinPro);
+        } else {
+            loadPinyinPro();
         }
     </script>
     <style>
@@ -189,32 +228,64 @@
     </div>
 
     <script>
-        // Wait for pinyin-pro to load and debug
-        function debugPinyinPro() {
-            console.log('=== pinyinPro Debug ===');
-            console.log('typeof pinyinPro:', typeof pinyinPro);
-            console.log('pinyinPro:', pinyinPro);
-            if (typeof pinyinPro !== 'undefined') {
-                console.log('pinyinPro keys:', Object.keys(pinyinPro));
-                if (pinyinPro.pinyin) {
-                    console.log('pinyinPro.pinyin type:', typeof pinyinPro.pinyin);
-                }
-                if (pinyinPro.default) {
-                    console.log('pinyinPro.default:', pinyinPro.default);
-                }
-            }
-            console.log('window.pinyinPro:', window.pinyinPro);
-            console.log('=====================');
-        }
+        let pinyinPro = null; // Will be set when library loads
+        let appInitialized = false;
         
-        // Check after page loads
-        window.addEventListener('load', function() {
-            setTimeout(debugPinyinPro, 1000); // Wait a bit for library to load
-        });
+        // Initialize the app once pinyin-pro is loaded
+        function initializeApp() {
+            if (appInitialized) return;
+            
+            // Wait a bit for the library to fully initialize
+            setTimeout(function() {
+                // Try multiple ways to access pinyin-pro (UMD builds can export differently)
+                if (typeof window.pinyinPro !== 'undefined') {
+                    pinyinPro = window.pinyinPro;
+                    console.log('pinyin-pro found on window.pinyinPro');
+                } else if (typeof window.pinyin !== 'undefined') {
+                    // Some builds might export as 'pinyin'
+                    pinyinPro = window.pinyin;
+                    console.log('pinyin-pro found on window.pinyin');
+                } else if (typeof pinyinPro !== 'undefined') {
+                    pinyinPro = window.pinyinPro || pinyinPro;
+                    console.log('pinyin-pro found as global pinyinPro');
+                } else {
+                    // Last attempt: check all window properties
+                    for (let key in window) {
+                        if (key.toLowerCase().includes('pinyin') && typeof window[key] === 'object') {
+                            pinyinPro = window[key];
+                            console.log('pinyin-pro found on window.' + key);
+                            break;
+                        }
+                    }
+                }
+                
+                if (!pinyinPro) {
+                    console.error('pinyin-pro library not found on window object');
+                    console.log('Checking window properties:', Object.keys(window).filter(k => k.toLowerCase().includes('pinyin')));
+                    showLibraryError();
+                    return;
+                }
+                
+                // Debug: Log the structure
+                console.log('=== pinyinPro Debug ===');
+                console.log('typeof pinyinPro:', typeof pinyinPro);
+                console.log('pinyinPro:', pinyinPro);
+                if (pinyinPro && typeof pinyinPro === 'object') {
+                    console.log('pinyinPro keys:', Object.keys(pinyinPro));
+                    // Check for common API methods
+                    if (pinyinPro.pinyin) console.log('pinyinPro.pinyin:', typeof pinyinPro.pinyin);
+                    if (pinyinPro.default) console.log('pinyinPro.default:', typeof pinyinPro.default);
+                }
+                console.log('=====================');
+                
+                appInitialized = true;
+                setupSpeechRecognition();
+            }, 100); // Give library 100ms to fully initialize
+        }
         
         // Check if pinyin-pro is available
         function checkPinyinPro() {
-            if (typeof pinyinPro === 'undefined') {
+            if (!pinyinPro) {
                 document.getElementById('errorMessage').style.display = 'block';
                 document.getElementById('errorMessage').textContent = 
                     'Error: pinyin-pro library failed to load. Please check your internet connection.';
@@ -223,25 +294,77 @@
             return true;
         }
         
-        // Check for Speech Recognition support
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        
-        if (!SpeechRecognition) {
-            document.getElementById('errorMessage').style.display = 'block';
-            document.getElementById('errorMessage').textContent = 
-                'Speech Recognition is not supported in this browser. Please use Chrome, Edge, or Safari.';
-            document.getElementById('startBtn').disabled = true;
+        // Convert text to pinyin
+        function convertToPinyin(text) {
+            if (!checkPinyinPro()) {
+                return null;
+            }
+            
+            try {
+                // Try different API access patterns for pinyin-pro
+                // Pattern 1: window.pinyinPro.pinyin() - most common for UMD builds
+                if (pinyinPro && pinyinPro.pinyin && typeof pinyinPro.pinyin === 'function') {
+                    return pinyinPro.pinyin(text, { toneType: 'num' });
+                }
+                
+                // Pattern 2: window.pinyinPro() - direct function export
+                if (pinyinPro && typeof pinyinPro === 'function') {
+                    return pinyinPro(text, { toneType: 'num' });
+                }
+                
+                // Pattern 3: window.pinyinPro.default.pinyin() - ES6 default export
+                if (pinyinPro && pinyinPro.default) {
+                    if (pinyinPro.default.pinyin && typeof pinyinPro.default.pinyin === 'function') {
+                        return pinyinPro.default.pinyin(text, { toneType: 'num' });
+                    }
+                    if (typeof pinyinPro.default === 'function') {
+                        return pinyinPro.default(text, { toneType: 'num' });
+                    }
+                }
+                
+                // Pattern 4: Check if it's an object with a different structure
+                if (pinyinPro && typeof pinyinPro === 'object') {
+                    // Try common method names
+                    const methods = ['pinyin', 'convert', 'toPinyin', 'getPinyin'];
+                    for (let method of methods) {
+                        if (pinyinPro[method] && typeof pinyinPro[method] === 'function') {
+                            return pinyinPro[method](text, { toneType: 'num' });
+                        }
+                    }
+                }
+                
+                console.error('Could not find pinyin API. pinyinPro structure:', pinyinPro);
+                console.log('Available keys:', pinyinPro ? Object.keys(pinyinPro) : 'null');
+                return null;
+            } catch (error) {
+                console.error('Error converting to pinyin:', error);
+                console.error('Text:', text);
+                console.error('Error details:', error.stack);
+                return null;
+            }
         }
         
-        let recognition = null;
-        const startBtn = document.getElementById('startBtn');
-        const stopBtn = document.getElementById('stopBtn');
-        const statusEl = document.getElementById('status');
-        const hanziResult = document.getElementById('hanziResult');
-        const pinyinResult = document.getElementById('pinyinResult');
-        const errorMessage = document.getElementById('errorMessage');
-        
-        if (SpeechRecognition) {
+        // Setup Speech Recognition
+        function setupSpeechRecognition() {
+            // Check for Speech Recognition support
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            
+            if (!SpeechRecognition) {
+                document.getElementById('errorMessage').style.display = 'block';
+                document.getElementById('errorMessage').textContent = 
+                    'Speech Recognition is not supported in this browser. Please use Chrome, Edge, or Safari.';
+                document.getElementById('startBtn').disabled = true;
+                return;
+            }
+            
+            let recognition = null;
+            const startBtn = document.getElementById('startBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            const statusEl = document.getElementById('status');
+            const hanziResult = document.getElementById('hanziResult');
+            const pinyinResult = document.getElementById('pinyinResult');
+            const errorMessage = document.getElementById('errorMessage');
+            
             recognition = new SpeechRecognition();
             recognition.lang = 'zh-CN'; // Chinese (Simplified)
             recognition.continuous = true;
@@ -274,39 +397,11 @@
                     hanziResult.textContent = displayText;
                     
                     // Convert to pinyin with tone numbers using pinyin-pro
-                    try {
-                        if (!checkPinyinPro()) {
-                            pinyinResult.textContent = 'Library not loaded';
-                            return;
-                        }
-                        
-                        let pinyin = '';
-                        
-                        // Try different ways to access pinyin-pro API
-                        if (pinyinPro && pinyinPro.pinyin && typeof pinyinPro.pinyin === 'function') {
-                            // Standard API: pinyinPro.pinyin(text, options)
-                            pinyin = pinyinPro.pinyin(displayText, {
-                                toneType: 'num' // Use tone numbers (1,2,3,4,5) instead of tone marks
-                            });
-                        } else if (pinyinPro && typeof pinyinPro === 'function') {
-                            // Direct function call
-                            pinyin = pinyinPro(displayText, { toneType: 'num' });
-                        } else if (pinyinPro && pinyinPro.default && typeof pinyinPro.default.pinyin === 'function') {
-                            // ES6 module default export
-                            pinyin = pinyinPro.default.pinyin(displayText, { toneType: 'num' });
-                        } else if (pinyinPro && pinyinPro.default && typeof pinyinPro.default === 'function') {
-                            // ES6 module default function
-                            pinyin = pinyinPro.default(displayText, { toneType: 'num' });
-                        } else {
-                            console.error('pinyinPro structure:', pinyinPro);
-                            pinyinResult.textContent = 'API not found. Check console for details.';
-                            return;
-                        }
-                        
-                        pinyinResult.textContent = pinyin || '—';
-                    } catch (error) {
-                        console.error('Error converting to pinyin:', error);
-                        pinyinResult.textContent = 'Error: ' + error.message;
+                    const pinyin = convertToPinyin(displayText);
+                    if (pinyin) {
+                        pinyinResult.textContent = pinyin;
+                    } else {
+                        pinyinResult.textContent = '—';
                     }
                 }
             };
@@ -331,25 +426,25 @@
                 startBtn.disabled = false;
                 stopBtn.disabled = true;
             };
-        }
-        
-        startBtn.addEventListener('click', function() {
-            if (recognition) {
-                try {
-                    recognition.start();
-                } catch (error) {
-                    console.error('Error starting recognition:', error);
-                    statusEl.textContent = 'Error starting recognition. Please try again.';
-                    statusEl.className = 'status error';
+            
+            startBtn.addEventListener('click', function() {
+                if (recognition) {
+                    try {
+                        recognition.start();
+                    } catch (error) {
+                        console.error('Error starting recognition:', error);
+                        statusEl.textContent = 'Error starting recognition. Please try again.';
+                        statusEl.className = 'status error';
+                    }
                 }
-            }
-        });
-        
-        stopBtn.addEventListener('click', function() {
-            if (recognition) {
-                recognition.stop();
-            }
-        });
+            });
+            
+            stopBtn.addEventListener('click', function() {
+                if (recognition) {
+                    recognition.stop();
+                }
+            });
+        }
     </script>
 </body>
 </html>
