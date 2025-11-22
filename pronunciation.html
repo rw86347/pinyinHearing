@@ -357,12 +357,10 @@
 
     <script src="https://unpkg.com/pinyin-pro@3.27.0/dist/index.js"></script>
     <script>
-        // Vocabulary data sources (same as preview.html)
-        // Try HTTPS first (for GitHub Pages), then HTTP (for same-origin)
+        // Vocabulary data sources - local file first (served from GitHub Pages)
         const DATA_SOURCES = [
-            'vocab.json',
-            'https://69.48.200.59/chineseStudy/vocab.json',  // Try HTTPS first
-            'http://69.48.200.59/chineseStudy/vocab.json'    // Fallback to HTTP
+            'vocab.json',  // Local file (copied from server)
+            'http://69.48.200.59/chineseStudy/vocab.json'  // Fallback to server (for direct server access)
         ];
         
         // Localized vocab sources
