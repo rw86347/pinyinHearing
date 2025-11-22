@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chinese Pronunciation Practice</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🇨🇳</text></svg>">
+    <style>
+        :root {
+            --bg: #f6f8fb;
+            --text: #1d2736;
+            --muted: #5c6880;
+            --accent: #2c7be5;
+            --accent-soft: rgba(44, 123, 229, 0.12);
+            --danger: #d9534f;
+            --success: #4CAF50;
+            --card-bg: #ffffff;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            min-height: 100vh;
+            font-family: "Segoe UI", "Helvetica Neue", -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #ffffff;
+            color: var(--text);
+            padding: 20px;
+        }
+
+        .app-shell {
+            width: 100%;
+            max-width: 560px;
+            margin: 0 auto;
+            padding: clamp(18px, 5vw, 36px);
+            display: grid;
+            gap: clamp(20px, 4vw, 36px);
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 10px;
+        }
+
+        header h2 {
+            margin: 0;
+            font-size: clamp(1.5rem, 3.4vw, 2rem);
+            font-weight: 700;
+            letter-spacing: 0.02em;
+        }
+
+        .panel {
+            padding: 0;
+            display: grid;
+            gap: clamp(16px, 2vw, 22px);
+            text-align: center;
+        }
+
+        .viewer {
+            display: none;
+            gap: clamp(16px, 4vw, 28px);
+            text-align: center;
+        }
+
+        .viewer.active {
+            display: grid;
+        }
+
+        .viewer-card {
+            display: grid;
+            gap: clamp(16px, 4vw, 28px);
+            align-items: center;
+        }
+
+        .word-counter {
+            font-size: clamp(0.95rem, 2.2vw, 1.2rem);
+            color: var(--muted);
+            font-weight: 600;
+        }
+
+        .hanzi-display {
+            font-size: clamp(3.2rem, 14vw, 4.6rem);
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            padding: clamp(12px, 4vw, 18px) 0;
+            font-family: "STKaiti", "KaiTi", "楷体", "楷體", "Kaiti SC", "STKaiti SC", "BiauKai", "標楷體", "Microsoft YaHei", "微软雅黑", "SimSun", "宋体", "宋體", serif;
+        }
+
+        .pinyin-row {
+            font-size: clamp(1.35rem, 4.6vw, 2.1rem);
+            color: var(--accent);
+            font-weight: 600;
+            justify-content: center;
+        }
+
+        .english-display {
+            font-size: clamp(1.2rem, 3.8vw, 1.6rem);
+            font-weight: 500;
+            color: var(--text);
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            align-items: center;
+        }
+
+        button {
+            font-size: 1rem;
+            padding: 12px 24px;
+            border-radius: 14px;
+            border: 2px solid rgba(44, 123, 229, 0.18);
+            background: #f6f9ff;
+            transition: all 0.2s ease;
+            color: var(--text);
+            cursor: pointer;
+            font-weight: 600;
+            min-width: 180px;
+        }
+
+        button:hover:not(:disabled) {
+            border-color: var(--accent);
+            box-shadow: 0 12px 28px rgba(44, 123, 229, 0.28);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        button.primary {
+            background: var(--accent);
+            color: #fff;
+            border-color: transparent;
+        }
+
+        button.success {
+            background: var(--success);
+            color: #fff;
+            border-color: transparent;
+        }
+
+        button.danger {
+            background: var(--danger);
+            color: #fff;
+            border-color: transparent;
+        }
+
+        .status {
+            font-size: 1.1em;
+            color: var(--muted);
+            margin: 10px 0;
+            min-height: 30px;
+        }
+
+        .status.listening {
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+        .status.speaking {
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+        .status.correct {
+            color: var(--success);
+            font-weight: bold;
+        }
+
+        .status.wrong {
+            color: var(--danger);
+            font-weight: bold;
+        }
+
+        .comparison-container {
+            margin-top: 20px;
+            padding: 20px;
+            background: var(--accent-soft);
+            border-radius: 12px;
+            display: none;
+        }
+
+        .comparison-container.active {
+            display: grid;
+            gap: 12px;
+        }
+
+        .comparison-row {
+            display: grid;
+            grid-template-columns: 100px 1fr;
+            gap: 10px;
+            align-items: center;
+            text-align: left;
+        }
+
+        .comparison-label {
+            font-weight: 600;
+            color: var(--muted);
+            font-size: 0.9em;
+        }
+
+        .comparison-value {
+            font-size: 1.1em;
+            color: var(--text);
+        }
+
+        .comparison-value.expected {
+            color: var(--success);
+        }
+
+        .comparison-value.heard {
+            color: var(--danger);
+        }
+
+        .error-message {
+            color: var(--danger);
+            margin-top: 20px;
+            padding: 15px;
+            background: #ffebee;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .error-message.active {
+            display: block;
+        }
+
+        .navigation {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .nav-button {
+            flex: 1;
+            max-width: 45%;
+            padding: 12px 0;
+            border-radius: 14px;
+            border: 2px solid rgba(44, 123, 229, 0.18);
+            background: #f6f9ff;
+            color: var(--accent);
+            font-size: clamp(1.1rem, 3.4vw, 1.3rem);
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+        }
+
+        .nav-button:hover {
+            border-color: var(--accent);
+            background: rgba(44, 123, 229, 0.12);
+        }
+
+        .setup-panel {
+            display: grid;
+            gap: 16px;
+        }
+
+        label {
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            color: var(--muted);
+        }
+
+        select {
+            font-size: 1rem;
+            padding: 12px 16px;
+            border-radius: 14px;
+            border: 2px solid rgba(44, 123, 229, 0.18);
+            background: #f6f9ff;
+            transition: all 0.2s ease;
+            color: var(--text);
+        }
+
+        select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 12px 28px rgba(44, 123, 229, 0.28);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-shell">
+        <header>
+            <h2 id="page-title">Pronunciation Practice</h2>
+        </header>
+
+        <section class="panel setup-panel" id="setup-panel">
+            <div class="selection-grid">
+                <div class="selection-row">
+                    <label for="book-select">Book</label>
+                    <select id="book-select">
+                        <option value="">Select a book…</option>
+                    </select>
+                </div>
+                <div class="selection-row">
+                    <label for="chapter-select">Chapter</label>
+                    <select id="chapter-select" disabled>
+                        <option value="">Select a chapter…</option>
+                    </select>
+                </div>
+                <button class="primary" id="start-practice" disabled>Start Practice</button>
+                <p class="message" id="setup-message"></p>
+            </div>
+        </section>
+
+        <section class="viewer" id="viewer">
+            <div class="viewer-card">
+                <div class="word-counter" id="word-counter"></div>
+                <div class="hanzi-display" id="hanzi-display">—</div>
+                <div class="pinyin-row">
+                    <span id="pinyin-display">—</span>
+                </div>
+                <div class="english-display" id="english-display">—</div>
+                
+                <div class="status" id="status">Click "Play Word" to hear pronunciation</div>
+                
+                <div class="controls">
+                    <button class="primary" id="play-btn">▶ Play Word</button>
+                    <button id="listen-btn" disabled>🎤 Listen to My Pronunciation</button>
+                </div>
+                
+                <div class="comparison-container" id="comparison">
+                    <div class="comparison-row">
+                        <div class="comparison-label">Expected:</div>
+                        <div class="comparison-value expected" id="expected-pinyin">—</div>
+                    </div>
+                    <div class="comparison-row">
+                        <div class="comparison-label">You said:</div>
+                        <div class="comparison-value heard" id="heard-pinyin">—</div>
+                    </div>
+                    <div class="comparison-row">
+                        <div class="comparison-label">Result:</div>
+                        <div class="comparison-value" id="result-message">—</div>
+                    </div>
+                </div>
+                
+                <div class="error-message" id="errorMessage"></div>
+            </div>
+            
+            <div class="navigation">
+                <button class="nav-button" id="prev-word">← Previous</button>
+                <button class="nav-button" id="next-word">Next →</button>
+            </div>
+        </section>
+    </div>
+
+    <script src="https://unpkg.com/pinyin-pro@3.27.0/dist/index.js"></script>
+    <script>
+        // Vocabulary data sources (same as preview.html)
+        const DATA_SOURCES = [
+            'vocab.json',
+            'http://69.48.200.59/chineseStudy/vocab.json'
+        ];
+
+        const state = {
+            data: null,
+            book: null,
+            chapter: null,
+            words: [],
+            index: 0,
+            expectedPinyin: null,
+            heardText: null,
+            heardPinyin: null
+        };
+        
+        let isListening = false;
+
+        let pinyinPro = null;
+        let recognition = null;
+        let synthesis = null;
+
+        // Initialize pinyin-pro
+        function initializePinyinPro() {
+            if (typeof window.pinyinPro !== 'undefined') {
+                pinyinPro = window.pinyinPro;
+                console.log('pinyin-pro loaded');
+                return true;
+            }
+            setTimeout(initializePinyinPro, 100);
+            return false;
+        }
+
+        // Initialize text-to-speech
+        function initializeTTS() {
+            if ('speechSynthesis' in window) {
+                synthesis = window.speechSynthesis;
+                return true;
+            }
+            return false;
+        }
+
+        // Initialize speech recognition
+        function initializeSpeechRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                document.getElementById('errorMessage').classList.add('active');
+                document.getElementById('errorMessage').textContent = 
+                    'Speech Recognition is not supported in this browser. Please use Chrome, Edge, or Safari.';
+                return false;
+            }
+
+            recognition = new SpeechRecognition();
+            recognition.lang = 'zh-CN';
+            recognition.continuous = false;
+            recognition.interimResults = false;
+
+            recognition.onstart = function() {
+                isListening = true;
+                document.getElementById('status').textContent = 'Listening... Speak now!';
+                document.getElementById('status').className = 'status listening';
+                document.getElementById('listen-btn').disabled = true;
+            };
+
+            recognition.onresult = function(event) {
+                const transcript = event.results[0][0].transcript;
+                state.heardText = transcript;
+                handlePronunciationResult(transcript);
+            };
+
+            recognition.onerror = function(event) {
+                isListening = false;
+                console.error('Speech recognition error:', event.error);
+                document.getElementById('status').textContent = 'Error: ' + event.error;
+                document.getElementById('status').className = 'status';
+                document.getElementById('listen-btn').disabled = false;
+                
+                if (event.error === 'no-speech') {
+                    document.getElementById('status').textContent = 'No speech detected. Try again.';
+                } else if (event.error === 'not-allowed') {
+                    document.getElementById('status').textContent = 'Microphone permission denied.';
+                }
+            };
+
+            recognition.onend = function() {
+                isListening = false;
+                document.getElementById('listen-btn').disabled = false;
+                if (document.getElementById('status').textContent === 'Listening... Speak now!') {
+                    document.getElementById('status').textContent = 'Click "Listen to My Pronunciation" to try again';
+                    document.getElementById('status').className = 'status';
+                }
+            };
+
+            return true;
+        }
+
+        // Speak word using TTS
+        function speakWord(text) {
+            if (!synthesis) {
+                alert('Text-to-speech not supported in this browser.');
+                return;
+            }
+
+            synthesis.cancel(); // Stop any ongoing speech
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'zh-CN';
+            utterance.rate = 0.8;
+            utterance.pitch = 1;
+            
+            document.getElementById('status').textContent = 'Speaking...';
+            document.getElementById('status').className = 'status speaking';
+            document.getElementById('play-btn').disabled = true;
+            document.getElementById('listen-btn').disabled = true;
+
+            utterance.onend = function() {
+                document.getElementById('status').textContent = 'Now try to say it!';
+                document.getElementById('status').className = 'status';
+                document.getElementById('play-btn').disabled = false;
+                document.getElementById('listen-btn').disabled = false;
+                document.getElementById('comparison').classList.remove('active');
+            };
+
+            utterance.onerror = function(event) {
+                console.error('TTS error:', event.error);
+                document.getElementById('status').textContent = 'Error speaking word';
+                document.getElementById('status').className = 'status';
+                document.getElementById('play-btn').disabled = false;
+            };
+
+            synthesis.speak(utterance);
+        }
+
+        // Convert text to pinyin
+        function convertToPinyin(text) {
+            if (!pinyinPro || !text) return null;
+            
+            try {
+                if (pinyinPro && pinyinPro.pinyin && typeof pinyinPro.pinyin === 'function') {
+                    return pinyinPro.pinyin(text, { toneType: 'num' });
+                }
+                return null;
+            } catch (error) {
+                console.error('Error converting to pinyin:', error);
+                return null;
+            }
+        }
+
+        // Normalize pinyin for comparison
+        function normalizePinyin(pinyin) {
+            if (!pinyin) return '';
+            return pinyin.toLowerCase().replace(/\s+/g, ' ').trim();
+        }
+
+        // Compare pinyin syllables
+        function comparePinyin(expected, heard) {
+            const expectedNorm = normalizePinyin(expected);
+            const heardNorm = normalizePinyin(heard);
+            
+            if (expectedNorm === heardNorm) {
+                return { match: true, type: 'perfect' };
+            }
+            
+            // Split into syllables
+            const expectedSyllables = expectedNorm.split(/\s+/);
+            const heardSyllables = heardNorm.split(/\s+/);
+            
+            // Check if syllable count matches
+            if (expectedSyllables.length !== heardSyllables.length) {
+                return { match: false, type: 'syllable_count', expectedCount: expectedSyllables.length, heardCount: heardSyllables.length };
+            }
+            
+            // Check each syllable for tone or pronunciation differences
+            const differences = [];
+            for (let i = 0; i < expectedSyllables.length; i++) {
+                const exp = expectedSyllables[i];
+                const hrd = heardSyllables[i];
+                
+                if (exp !== hrd) {
+                    // Extract base (without tone) and tone
+                    const expMatch = exp.match(/^(.+?)([1-5])?$/);
+                    const hrdMatch = hrd.match(/^(.+?)([1-5])?$/);
+                    
+                    if (expMatch && hrdMatch) {
+                        const expBase = expMatch[1];
+                        const expTone = expMatch[2] || '';
+                        const hrdBase = hrdMatch[1];
+                        const hrdTone = hrdMatch[2] || '';
+                        
+                        if (expBase === hrdBase && expTone !== hrdTone) {
+                            differences.push({ index: i, type: 'tone', expected: exp, heard: hrd });
+                        } else if (expBase !== hrdBase) {
+                            differences.push({ index: i, type: 'pronunciation', expected: exp, heard: hrd });
+                        }
+                    }
+                }
+            }
+            
+            return { match: false, type: 'differences', differences };
+        }
+
+        // Handle pronunciation result
+        function handlePronunciationResult(heardText) {
+            const word = state.words[state.index];
+            if (!word) return;
+
+            state.heardText = heardText;
+            state.heardPinyin = convertToPinyin(heardText);
+            
+            const comparison = comparePinyin(state.expectedPinyin, state.heardPinyin);
+            
+            document.getElementById('expected-pinyin').textContent = state.expectedPinyin || '—';
+            document.getElementById('heard-pinyin').textContent = state.heardPinyin || '—';
+            document.getElementById('comparison').classList.add('active');
+            
+            if (comparison.match) {
+                document.getElementById('status').textContent = '✓ Perfect! Well done!';
+                document.getElementById('status').className = 'status correct';
+                document.getElementById('result-message').textContent = 'Perfect match!';
+                document.getElementById('result-message').style.color = 'var(--success)';
+            } else {
+                let message = '';
+                if (comparison.type === 'tone') {
+                    message = 'Tone is wrong';
+                } else if (comparison.type === 'pronunciation') {
+                    message = 'Pronunciation is wrong';
+                } else if (comparison.type === 'syllable_count') {
+                    message = `Syllable count mismatch (expected ${comparison.expectedCount}, heard ${comparison.heardCount})`;
+                } else {
+                    message = 'Pronunciation needs improvement';
+                }
+                
+                document.getElementById('status').textContent = '✗ Try again';
+                document.getElementById('status').className = 'status wrong';
+                document.getElementById('result-message').textContent = message;
+                document.getElementById('result-message').style.color = 'var(--danger)';
+            }
+            
+            document.getElementById('listen-btn').disabled = false;
+        }
+
+        // Render current word
+        function renderWord() {
+            if (!state.words.length) {
+                document.getElementById('hanzi-display').textContent = '—';
+                document.getElementById('pinyin-display').textContent = '—';
+                document.getElementById('english-display').textContent = '—';
+                document.getElementById('word-counter').textContent = '';
+                return;
+            }
+
+            const word = state.words[state.index];
+            document.getElementById('hanzi-display').textContent = word.hanzi || '—';
+            document.getElementById('pinyin-display').textContent = word.pinyin || '—';
+            document.getElementById('english-display').textContent = word.english || '—';
+            document.getElementById('word-counter').textContent = `Word ${state.index + 1} / ${state.words.length}`;
+            
+            // Store expected pinyin for comparison
+            state.expectedPinyin = convertToPinyin(word.hanzi) || normalizePinyin(word.pinyin);
+            
+            // Reset state
+            state.heardText = null;
+            state.heardPinyin = null;
+            document.getElementById('status').textContent = 'Click "Play Word" to hear pronunciation';
+            document.getElementById('status').className = 'status';
+            document.getElementById('comparison').classList.remove('active');
+            document.getElementById('listen-btn').disabled = false;
+            
+            // Stop any ongoing speech
+            if (synthesis) {
+                synthesis.cancel();
+            }
+        }
+
+        // Load vocabulary data
+        async function loadVocabularyData() {
+            for (const url of DATA_SOURCES) {
+                try {
+                    const response = await fetch(`${url}?_=${Date.now()}`);
+                    if (!response.ok) {
+                        console.warn('Vocabulary request failed', url, response.status);
+                        continue;
+                    }
+                    const payload = await response.json();
+                    state.data = payload.bookarray || {};
+                    console.log('Loaded vocabulary from', url);
+                    populateBooks();
+                    return;
+                } catch (error) {
+                    console.warn('Vocabulary request error', url, error);
+                }
+            }
+            // Fallback to sample data if all sources fail
+            console.warn('All vocabulary sources failed, using sample data');
+            state.data = {
+                "HSK1": {
+                    "Chapter 1": [
+                        { hanzi: "你好", pinyin: "nǐ hǎo", english: "hello" },
+                        { hanzi: "谢谢", pinyin: "xiè xie", english: "thank you" },
+                        { hanzi: "再见", pinyin: "zài jiàn", english: "goodbye" }
+                    ]
+                }
+            };
+            populateBooks();
+        }
+
+        // Populate books
+        function populateBooks() {
+            const select = document.getElementById('book-select');
+            select.innerHTML = '<option value="">Select a book…</option>';
+            
+            if (!state.data) {
+                return;
+            }
+            
+            const books = Object.keys(state.data);
+            books.sort();
+            
+            books.forEach(bookKey => {
+                const option = document.createElement('option');
+                option.value = bookKey;
+                option.textContent = bookKey;
+                select.appendChild(option);
+            });
+        }
+
+        // Populate chapters
+        function populateChapters() {
+            const chapterSelect = document.getElementById('chapter-select');
+            chapterSelect.innerHTML = '<option value="">Select a chapter…</option>';
+            chapterSelect.disabled = !state.book;
+
+            if (!state.book) return;
+
+            const chapters = state.data[state.book] ? Object.keys(state.data[state.book]) : [];
+            chapters.sort();
+
+            chapters.forEach(chapterKey => {
+                const option = document.createElement('option');
+                option.value = chapterKey;
+                option.textContent = chapterKey;
+                chapterSelect.appendChild(option);
+            });
+        }
+
+        // Start practice
+        function startPractice() {
+            if (!state.book || !state.chapter) {
+                document.getElementById('setup-message').textContent = 'Please select a book and chapter';
+                return;
+            }
+
+            const chapterData = state.data[state.book] && state.data[state.book][state.chapter];
+            if (!Array.isArray(chapterData) || chapterData.length === 0) {
+                document.getElementById('setup-message').textContent = 'No words found for this chapter';
+                return;
+            }
+
+            state.words = chapterData.slice();
+            state.index = 0;
+            
+            document.getElementById('setup-panel').style.display = 'none';
+            document.getElementById('viewer').classList.add('active');
+            
+            renderWord();
+        }
+
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            // Wait for pinyin-pro to load
+            const checkPinyinPro = setInterval(() => {
+                if (typeof window.pinyinPro !== 'undefined') {
+                    pinyinPro = window.pinyinPro;
+                    clearInterval(checkPinyinPro);
+                    console.log('pinyin-pro ready');
+                }
+            }, 100);
+
+            initializeTTS();
+            initializeSpeechRecognition();
+            loadVocabularyData();
+
+            document.getElementById('book-select').addEventListener('change', function(e) {
+                state.book = e.target.value || null;
+                state.chapter = null;
+                populateChapters();
+                document.getElementById('start-practice').disabled = !(state.book && state.chapter);
+            });
+
+            document.getElementById('chapter-select').addEventListener('change', function(e) {
+                state.chapter = e.target.value || null;
+                document.getElementById('start-practice').disabled = !(state.book && state.chapter);
+            });
+
+            document.getElementById('start-practice').addEventListener('click', startPractice);
+
+            document.getElementById('play-btn').addEventListener('click', function() {
+                const word = state.words[state.index];
+                if (word && word.hanzi) {
+                    speakWord(word.hanzi);
+                }
+            });
+
+            document.getElementById('listen-btn').addEventListener('click', function() {
+                if (recognition && !isListening) {
+                    try {
+                        recognition.start();
+                    } catch (error) {
+                        console.error('Error starting recognition:', error);
+                        if (error.message.includes('already started')) {
+                            // Recognition already running, ignore
+                        } else {
+                            document.getElementById('status').textContent = 'Error starting recognition. Please try again.';
+                        }
+                    }
+                }
+            });
+
+            document.getElementById('prev-word').addEventListener('click', function() {
+                if (state.words.length) {
+                    state.index = (state.index - 1 + state.words.length) % state.words.length;
+                    renderWord();
+                }
+            });
+
+            document.getElementById('next-word').addEventListener('click', function() {
+                if (state.words.length) {
+                    state.index = (state.index + 1) % state.words.length;
+                    renderWord();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
