@@ -287,6 +287,117 @@
             border-color: var(--accent);
             box-shadow: 0 12px 28px rgba(44, 123, 229, 0.28);
         }
+
+        .settings-btn {
+            position: fixed;
+            top: clamp(18px, 5vw, 36px);
+            right: clamp(18px, 5vw, 36px);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--accent);
+            color: white;
+            border: none;
+            font-size: 1.2em;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(44, 123, 229, 0.3);
+            transition: all 0.2s ease;
+            z-index: 1000;
+        }
+
+        .settings-btn:hover {
+            background: #2369d4;
+            transform: scale(1.1);
+            box-shadow: 0 6px 16px rgba(44, 123, 229, 0.4);
+        }
+
+        .settings-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 20px;
+        }
+
+        .settings-modal.active {
+            display: flex;
+        }
+
+        .settings-modal-content {
+            background: white;
+            border-radius: 16px;
+            padding: 28px;
+            max-width: 400px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.28);
+        }
+
+        .settings-modal-content h3 {
+            margin: 0 0 20px 0;
+            font-size: 1.5rem;
+            color: var(--text);
+        }
+
+        .settings-row {
+            margin-bottom: 20px;
+        }
+
+        .settings-row label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--muted);
+        }
+
+        .settings-row select,
+        .settings-row input[type="range"] {
+            width: 100%;
+        }
+
+        .settings-row input[type="range"] {
+            margin: 10px 0;
+        }
+
+        .settings-value {
+            display: inline-block;
+            min-width: 40px;
+            text-align: right;
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        .settings-close {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--muted);
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .settings-close:hover {
+            color: var(--text);
+        }
+
+        .settings-modal-header {
+            position: relative;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
@@ -315,6 +426,7 @@
         </section>
 
         <section class="viewer" id="viewer">
+            <button class="settings-btn" id="settings-btn" title="Voice Settings">⚙</button>
             <div class="viewer-card">
                 <div class="word-counter" id="word-counter"></div>
                 <div class="hanzi-display" id="hanzi-display">—</div>
@@ -355,6 +467,40 @@
         </section>
     </div>
 
+    <!-- Settings Modal -->
+    <div class="settings-modal" id="settings-modal">
+        <div class="settings-modal-content">
+            <div class="settings-modal-header">
+                <h3>Voice Settings</h3>
+                <button class="settings-close" id="settings-close-btn">×</button>
+            </div>
+            <div class="settings-row">
+                <label for="voice-select">Voice</label>
+                <select id="voice-select">
+                    <option value="">Default (System)</option>
+                </select>
+            </div>
+            <div class="settings-row">
+                <label for="speed-range">
+                    Speed <span class="settings-value" id="speed-value">0.5</span>
+                </label>
+                <input type="range" id="speed-range" min="0.1" max="2" step="0.1" value="0.5">
+            </div>
+            <div class="settings-row">
+                <label for="pitch-range">
+                    Pitch <span class="settings-value" id="pitch-value">1.0</span>
+                </label>
+                <input type="range" id="pitch-range" min="0" max="2" step="0.1" value="1.0">
+            </div>
+            <div class="settings-row">
+                <label for="volume-range">
+                    Volume <span class="settings-value" id="volume-value">1.0</span>
+                </label>
+                <input type="range" id="volume-range" min="0" max="1" step="0.1" value="1.0">
+            </div>
+        </div>
+    </div>
+
     <script src="https://unpkg.com/pinyin-pro@3.27.0/dist/index.js"></script>
     <script>
         // Vocabulary data sources - local file first (served from GitHub Pages)
@@ -385,6 +531,7 @@
         let pinyinPro = null;
         let recognition = null;
         let synthesis = null;
+        let availableVoices = [];
 
         // Initialize pinyin-pro
         function initializePinyinPro() {
@@ -468,6 +615,144 @@
             volume: 1.0,
             repeat: true
         };
+
+        // Load voice settings from localStorage
+        function loadVoiceSettings() {
+            try {
+                const saved = localStorage.getItem('pronunciationVoiceSettings');
+                if (saved) {
+                    voiceSettings = { ...voiceSettings, ...JSON.parse(saved) };
+                } else {
+                    // Auto-select Google Chinese voice if available (first time setup)
+                    autoSelectGoogleChineseVoice();
+                }
+            } catch (e) {
+                console.warn('Failed to load voice settings:', e);
+            }
+            applyVoiceSettingsToUI();
+        }
+
+        // Save voice settings to localStorage
+        function saveVoiceSettings() {
+            try {
+                localStorage.setItem('pronunciationVoiceSettings', JSON.stringify(voiceSettings));
+            } catch (e) {
+                console.warn('Failed to save voice settings:', e);
+            }
+        }
+
+        // Auto-select Google Chinese voice if available
+        function autoSelectGoogleChineseVoice() {
+            if (!synthesis) return;
+            
+            const voices = synthesis.getVoices();
+            if (!voices || voices.length === 0) {
+                // Voices may not be loaded yet, try again later
+                if (synthesis.onvoiceschanged !== undefined) {
+                    synthesis.onvoiceschanged = () => {
+                        autoSelectGoogleChineseVoice();
+                        loadVoices();
+                    };
+                }
+                return;
+            }
+
+            // Look for Google Chinese voices first
+            const googleChineseVoices = voices.filter(v => 
+                v.name.includes('Google') && 
+                (v.lang.startsWith('zh') || v.lang.includes('Chinese'))
+            );
+
+            if (googleChineseVoices.length > 0) {
+                // Prefer zh-CN, then zh-TW, then any Google Chinese
+                const preferredVoice = googleChineseVoices.find(v => v.lang === 'zh-CN') ||
+                                     googleChineseVoices.find(v => v.lang === 'zh-TW') ||
+                                     googleChineseVoices[0];
+                voiceSettings.voiceName = preferredVoice.name;
+                console.log('Auto-selected Google Chinese voice:', preferredVoice.name);
+                return;
+            }
+
+            // Fallback to any Chinese voice
+            const chineseVoices = voices.filter(v => 
+                v.lang.startsWith('zh') || v.lang.includes('Chinese')
+            );
+            
+            if (chineseVoices.length > 0) {
+                const preferredVoice = chineseVoices.find(v => v.lang === 'zh-CN') ||
+                                     chineseVoices.find(v => v.lang === 'zh-TW') ||
+                                     chineseVoices[0];
+                voiceSettings.voiceName = preferredVoice.name;
+                console.log('Auto-selected Chinese voice:', preferredVoice.name);
+            }
+        }
+
+        // Load available voices
+        function loadVoices() {
+            if (!synthesis) return;
+            
+            function populateVoices() {
+                availableVoices = synthesis.getVoices();
+                const voiceSelect = document.getElementById('voice-select');
+                if (!voiceSelect) return;
+                
+                voiceSelect.innerHTML = '<option value="">Default (System)</option>';
+                
+                // Filter for Chinese voices or all voices
+                const chineseVoices = availableVoices.filter(v => 
+                    v.lang.startsWith('zh') || v.lang.includes('Chinese')
+                );
+                
+                // Prefer Chinese voices, but show all if none found
+                const voicesToShow = chineseVoices.length > 0 ? chineseVoices : availableVoices;
+                
+                voicesToShow.forEach((voice) => {
+                    const option = document.createElement('option');
+                    option.value = voice.name;
+                    option.textContent = `${voice.name} (${voice.lang})`;
+                    voiceSelect.appendChild(option);
+                });
+                
+                // Restore selected voice
+                if (voiceSettings.voiceName) {
+                    voiceSelect.value = voiceSettings.voiceName;
+                }
+            }
+            
+            populateVoices();
+            
+            // Also listen for voiceschanged event
+            if (synthesis.onvoiceschanged !== undefined) {
+                synthesis.onvoiceschanged = populateVoices;
+            }
+        }
+
+        // Apply voice settings to UI
+        function applyVoiceSettingsToUI() {
+            const voiceSelect = document.getElementById('voice-select');
+            const speedRange = document.getElementById('speed-range');
+            const pitchRange = document.getElementById('pitch-range');
+            const volumeRange = document.getElementById('volume-range');
+            const speedValue = document.getElementById('speed-value');
+            const pitchValue = document.getElementById('pitch-value');
+            const volumeValue = document.getElementById('volume-value');
+            
+            if (voiceSelect && voiceSettings.voiceName) {
+                voiceSelect.value = voiceSettings.voiceName;
+            }
+            if (speedRange) {
+                speedRange.value = voiceSettings.rate;
+                if (speedValue) speedValue.textContent = voiceSettings.rate.toFixed(1);
+            }
+            if (pitchRange) {
+                pitchRange.value = voiceSettings.pitch;
+                if (pitchValue) pitchValue.textContent = voiceSettings.pitch.toFixed(1);
+            }
+            if (volumeRange) {
+                volumeRange.value = voiceSettings.volume;
+                if (volumeValue) volumeValue.textContent = voiceSettings.volume.toFixed(1);
+            }
+        }
 
         // Speak word using TTS (matching voice.html settings)
         function speakWord(text) {
@@ -812,6 +1097,78 @@
             initializeTTS();
             initializeSpeechRecognition();
             loadVocabularyData();
+            
+            // Load and apply voice settings
+            loadVoiceSettings();
+            loadVoices();
+            
+            // Settings modal
+            const settingsModal = document.getElementById('settings-modal');
+            const settingsBtn = document.getElementById('settings-btn');
+            const settingsCloseBtn = document.getElementById('settings-close-btn');
+            
+            if (settingsBtn && settingsModal) {
+                settingsBtn.addEventListener('click', () => {
+                    settingsModal.classList.add('active');
+                    loadVoices();
+                    applyVoiceSettingsToUI();
+                });
+            }
+            
+            if (settingsCloseBtn && settingsModal) {
+                settingsCloseBtn.addEventListener('click', () => {
+                    settingsModal.classList.remove('active');
+                });
+            }
+            
+            // Close settings modal when clicking outside
+            if (settingsModal) {
+                settingsModal.addEventListener('click', (e) => {
+                    if (e.target === settingsModal) {
+                        settingsModal.classList.remove('active');
+                    }
+                });
+            }
+            
+            // Voice settings controls
+            const voiceSelect = document.getElementById('voice-select');
+            const speedRange = document.getElementById('speed-range');
+            const pitchRange = document.getElementById('pitch-range');
+            const volumeRange = document.getElementById('volume-range');
+            const speedValue = document.getElementById('speed-value');
+            const pitchValue = document.getElementById('pitch-value');
+            const volumeValue = document.getElementById('volume-value');
+            
+            if (voiceSelect) {
+                voiceSelect.addEventListener('change', (e) => {
+                    voiceSettings.voiceName = e.target.value || null;
+                    saveVoiceSettings();
+                });
+            }
+            
+            if (speedRange && speedValue) {
+                speedRange.addEventListener('input', (e) => {
+                    voiceSettings.rate = parseFloat(e.target.value);
+                    speedValue.textContent = voiceSettings.rate.toFixed(1);
+                    saveVoiceSettings();
+                });
+            }
+            
+            if (pitchRange && pitchValue) {
+                pitchRange.addEventListener('input', (e) => {
+                    voiceSettings.pitch = parseFloat(e.target.value);
+                    pitchValue.textContent = voiceSettings.pitch.toFixed(1);
+                    saveVoiceSettings();
+                });
+            }
+            
+            if (volumeRange && volumeValue) {
+                volumeRange.addEventListener('input', (e) => {
+                    voiceSettings.volume = parseFloat(e.target.value);
+                    volumeValue.textContent = voiceSettings.volume.toFixed(1);
+                    saveVoiceSettings();
+                });
+            }
 
             document.getElementById('book-select').addEventListener('change', function(e) {
                 state.book = e.target.value || null;
